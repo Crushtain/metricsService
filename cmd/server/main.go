@@ -56,7 +56,7 @@ func metricsHandler(w http.ResponseWriter, r *http.Request) {
 	params := strings.Split(path, "/")
 
 	if len(params) != 3 {
-		http.Error(w, "Invalid path", http.StatusBadRequest)
+		w.WriteHeader(http.StatusNotFound)
 		return
 	}
 
@@ -68,23 +68,23 @@ func metricsHandler(w http.ResponseWriter, r *http.Request) {
 	case "gauge":
 		value, err := strconv.ParseFloat(metricValue, 64)
 		if err != nil {
-			http.Error(w, "Invalid metric value", http.StatusBadRequest)
+			w.WriteHeader(http.StatusBadRequest)
 			return
 		}
 		storage.gauge(metricName, value)
 	case "counter":
 		value, err := strconv.ParseInt(metricValue, 10, 64)
 		if err != nil {
-			http.Error(w, "Invalid metric value", http.StatusBadRequest)
+			w.WriteHeader(http.StatusBadRequest)
 			return
 		}
 		storage.counter(metricName, value)
 	default:
-		http.Error(w, "Invalid metric type", http.StatusBadRequest)
+		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
 
-	fmt.Fprintln(w, "Metric updated")
+	w.WriteHeader(http.StatusOK)
 }
 
 func main() {
