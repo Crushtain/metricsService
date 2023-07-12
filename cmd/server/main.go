@@ -87,14 +87,92 @@ func metricsHandler(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 }
 
+func handleValue(res http.ResponseWriter, req *http.Request) {
+	if req.Method != http.MethodGet {
+		http.Error(res, "Не тот метод", http.StatusMethodNotAllowed)
+		return
+	}
+
+	path := strings.TrimPrefix(req.URL.Path, "/value/")
+	parts := strings.Split(path, "/")
+	if len(parts) != 2 {
+		http.Error(res, "Не полный запрос", http.StatusBadRequest)
+		return
+	}
+
+	metricType := parts[0]
+	metricName := parts[1]
+
+	value, ok := storage.metrics[metricName]
+	if !ok {
+		http.Error(res, "Не найдено", http.StatusNotFound)
+	}
+
+	response := fmt.Sprintf("Current value of %s metric (%s): %s", metricType, metricName, value)
+
+	res.Header().Set("Content-Type", "text/plain")
+	res.WriteHeader(http.StatusOK)
+	_, _ = res.Write([]byte(response))
+}
+
+func handleMain(res http.ResponseWriter, req *http.Request) {
+	if req.Method != http.MethodGet {
+		http.Error(res, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	body := `<html>
+<head>
+<title>Metric List</title>
+</head>
+<body>
+<h1>Metric List</h1>
+<table>
+<tr>
+<th>Name</th>
+<th>Value</th>
+</tr>`
+
+	for metricType, metricMap := range storage.metrics {
+		for metricName, metricValue := range metricMap {
+			row := fmt.Sprintf(`<tr><td>%s</td><td>%v</td></tr>`, metricType+"/"+metricName, metricValue)
+			body += row
+		}
+	}
+
+	body += `</table>
+</body>
+</html>`
+
+	res.Header().Set("Content-Type", "text/html")
+	res.WriteHeader(http.StatusOK)
+	_, _ = res.Write([]byte(body))
+}
+func handleAdd(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	// Обработка добавления новой метрики
+
+	response := "New metric added"
+
+	w.Header().Set("Content-Type", "text/plain")
+	w.WriteHeader(http.StatusOK)
+	_, _ = w.Write([]byte(response))
+}
+
 func main() {
 	storage.metrics = make(map[string]map[string]interface{})
-
+	http.HandleFunc("/add/", handleAdd)
+	http.HandleFunc("/value/counter/123", handleMain)
+	http.HandleFunc("/value/", handleValue)
 	http.HandleFunc("/update/", metricsHandler)
 	http.HandleFunc("/metrics", func(w http.ResponseWriter, r *http.Request) {
 		metrics := storage.getMetrics()
 		fmt.Fprint(w, metrics)
 	})
 
-	http.ListenAndServe(":8080", nil)
+	http.ListenAndServe("localhost:8080", nil)
 }
